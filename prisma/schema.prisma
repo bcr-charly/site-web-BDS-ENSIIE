@@ -232,3 +232,11 @@ model OrderItem {
   quantity       Int     @default(1)
   unitPriceCents Int
 }
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

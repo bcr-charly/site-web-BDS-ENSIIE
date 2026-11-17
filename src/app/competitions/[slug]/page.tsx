@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppImage } from "@/components/app-image";
 import { StatusBadge } from "@/components/status-badge";
-import { competitionStatus, getCompetitionBySlug, placesRestantes } from "@/lib/data";
+import { RegisterButton } from "@/components/register-button";
+import { auth } from "@/auth";
+import { competitionStatus, getCompetitionBySlug, getRegistration, placesRestantes } from "@/lib/data";
 import { formatCents, formatDateFR, formatTimeFR } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +35,8 @@ export default async function CompetitionPage({ params }: PageProps) {
   const status = competitionStatus(competition);
   const places = placesRestantes(competition);
   const inscriptionsOuvertes = status === "OUVERTE" && (!competition.deadline || competition.deadline >= new Date());
+  const session = await auth();
+  const existing = session?.user?.id ? await getRegistration(session.user.id, competition.id) : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -97,12 +101,15 @@ export default async function CompetitionPage({ params }: PageProps) {
           </dl>
 
           {inscriptionsOuvertes ? (
-            <Link
-              href="/connexion"
-              className="mt-8 inline-block rounded-full bg-bds-orange px-8 py-3 font-display text-lg font-bold uppercase tracking-wide text-bds-black transition-colors hover:bg-bds-orangeDark"
-            >
-              S'inscrire
-            </Link>
+            <RegisterButton
+              competitionId={competition.id}
+              status={status}
+              priceCents={competition.priceCents}
+              loggedIn={Boolean(session?.user)}
+              isMember={session?.user?.isMember ?? false}
+              alreadyRegistered={Boolean(existing)}
+              callbackUrl={`/competitions/${competition.slug}`}
+            />
           ) : (
             <p className="mt-8 rounded-xl border border-white/10 bg-bds-coal px-4 py-3 text-white/70">
               {status === "PASSEE"
