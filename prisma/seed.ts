@@ -1,4 +1,5 @@
 import { CompetitionType, PrismaClient, Role, TeamRole } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -106,12 +107,20 @@ async function main() {
   await prisma.sport.deleteMany();
   await prisma.user.deleteMany();
 
+  const usedEmails = new Set<string>(BUREAU.map((m) => slugEmail(m.firstName, m.lastName)));
   let nameIndex = 0;
   const nextName = () => {
-    const firstName = FIRST_NAMES[nameIndex % FIRST_NAMES.length];
-    const lastName = LAST_NAMES[Math.floor(nameIndex / FIRST_NAMES.length) % LAST_NAMES.length];
-    nameIndex += 1;
-    return { firstName, lastName };
+    let firstName = "";
+    let lastName = "";
+    let email = "";
+    do {
+      firstName = FIRST_NAMES[nameIndex % FIRST_NAMES.length];
+      lastName = LAST_NAMES[Math.floor(nameIndex / FIRST_NAMES.length) % LAST_NAMES.length];
+      nameIndex += 1;
+      email = slugEmail(firstName, lastName);
+    } while (usedEmails.has(email));
+    usedEmails.add(email);
+    return { firstName, lastName, email };
   };
 
   const bureauUsers = [];
@@ -135,7 +144,7 @@ async function main() {
     const captainName = nextName();
     const captain = await prisma.user.create({
       data: {
-        email: slugEmail(captainName.firstName, captainName.lastName),
+        email: captainName.email,
         firstName: captainName.firstName,
         lastName: captainName.lastName,
         promoYear: 2026,
@@ -157,7 +166,7 @@ async function main() {
       const p = nextName();
       const player = await prisma.user.create({
         data: {
-          email: slugEmail(p.firstName, p.lastName),
+          email: p.email,
           firstName: p.firstName,
           lastName: p.lastName,
           promoYear: 2027 + (i % 2),
@@ -234,6 +243,41 @@ async function main() {
       },
     ],
   });
+
+  const now = new Date();
+  const saison = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+  const testAccounts = [
+    { email: "test@ensiie.eu", password: "test1234", firstName: "Test", lastName: "Etudiant", promoYear: 2027, role: Role.STUDENT },
+    { email: "admin@ensiie.eu", password: "admin1234", firstName: "Test", lastName: "Admin", promoYear: 2026, role: Role.ADMIN },
+  ];
+  for (const [i, account] of testAccounts.entries()) {
+    const user = await prisma.user.create({
+      data: {
+        email: account.email,
+        firstName: account.firstName,
+        lastName: account.lastName,
+        promoYear: account.promoYear,
+        role: account.role,
+        isMember: true,
+        emailVerified: new Date(),
+        passwordHash: bcrypt.hashSync(account.password, 10),
+      },
+    });
+    const payment = await prisma.payment.create({
+      data: {
+        userId: user.id,
+        kind: "COTISATION",
+        helloAssoIntent: `seed_mock_cotisation_${i}`,
+        status: "PAID",
+        amountCents: 2000,
+        payerName: `${account.firstName} ${account.lastName}`,
+        paidAt: new Date(),
+      },
+    });
+    await prisma.adhesion.create({
+      data: { userId: user.id, saisonYear: saison, status: "PAID", paidAt: new Date(), paymentId: payment.id },
+    });
+  }
 
   const counts = {
     users: await prisma.user.count(),

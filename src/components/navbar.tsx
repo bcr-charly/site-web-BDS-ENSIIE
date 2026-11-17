@@ -4,11 +4,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { NAV_ITEMS } from "@/lib/site";
 
 export function Navbar() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
+  const loggedIn = status === "authenticated";
+
+  const accountLink = (
+    <Link
+      href={loggedIn ? "/mon-compte" : "/connexion"}
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+        loggedIn
+          ? "bg-bds-orange text-bds-black hover:bg-bds-orangeDark"
+          : "border border-bds-orange text-bds-orange hover:bg-bds-orange hover:text-bds-black"
+      }`}
+    >
+      {loggedIn ? "Mon compte" : "Connexion"}
+    </Link>
+  );
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-bds-black/90 backdrop-blur">
@@ -37,12 +53,7 @@ export function Navbar() {
               </Link>
             );
           })}
-          <Link
-            href="/connexion"
-            className="ml-2 rounded-full border border-bds-orange px-4 py-2 text-sm font-semibold text-bds-orange transition-colors hover:bg-bds-orange hover:text-bds-black"
-          >
-            Connexion
-          </Link>
+          <span className="ml-2">{accountLink}</span>
         </div>
 
         <button
@@ -80,13 +91,7 @@ export function Navbar() {
               </Link>
             );
           })}
-          <Link
-            href="/connexion"
-            onClick={() => setOpen(false)}
-            className="mt-2 block rounded-lg bg-bds-orange px-3 py-3 text-center text-sm font-semibold text-bds-black"
-          >
-            Connexion
-          </Link>
+          <div className="mt-2">{accountLink}</div>
         </div>
       ) : null}
     </header>

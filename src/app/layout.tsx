@@ -8,6 +8,7 @@ import "@fontsource/bricolage-grotesque/800.css";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { Providers } from "@/components/session-provider";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -23,9 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className="bg-bds-black font-sans text-bds-white antialiased">
-        <Navbar />
-        <main className="pt-16">{children}</main>
-        <Footer />
+        <Providers>
+          <Navbar />
+          <main className="pt-16">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

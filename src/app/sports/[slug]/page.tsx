@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppImage } from "@/components/app-image";
 import { MemberCard } from "@/components/member-card";
-import { getSportBySlug } from "@/lib/data";
+import { SportInscribeButton } from "@/components/sport-inscribe-button";
+import { auth } from "@/auth";
+import { getSportBySlug, getTeamMembership } from "@/lib/data";
 import { WEEKDAYS } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,8 @@ export default async function SportPage({ params }: PageProps) {
   const coach = sport.teamMembers.find((m) => m.role === "COACH");
   const captain = sport.teamMembers.find((m) => m.role === "CAPTAIN") ?? null;
   const players = sport.teamMembers.filter((m) => m.role === "PLAYER");
+  const session = await auth();
+  const membership = session?.user?.id ? await getTeamMembership(session.user.id, sport.id) : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -65,12 +69,13 @@ export default async function SportPage({ params }: PageProps) {
             </ul>
           )}
 
-          <Link
-            href="/inscription"
-            className="mt-8 inline-block rounded-full bg-bds-orange px-8 py-3 font-display text-lg font-bold uppercase tracking-wide text-bds-black transition-colors hover:bg-bds-orangeDark"
-          >
-            S'inscrire
-          </Link>
+          <SportInscribeButton
+            slug={sport.slug}
+            sportName={sport.name}
+            loggedIn={Boolean(session?.user)}
+            isMember={session?.user?.isMember ?? false}
+            alreadyMember={Boolean(membership)}
+          />
         </div>
 
         <div>

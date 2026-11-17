@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { saisonYear } from "@/lib/site";
 import type { Competition, Session, Sport } from "@prisma/client";
 
 export type CompetitionWithCount = Competition & {
@@ -91,4 +92,39 @@ export function competitionStatus(c: CompetitionWithCount, now = new Date()): Co
 export function placesRestantes(c: CompetitionWithCount): number | null {
   if (c.maxSlots === null) return null;
   return Math.max(0, c.maxSlots - c._count.registrations);
+}
+
+export async function getSessionsFiltered(sportSlug?: string) {
+  return prisma.session.findMany({
+    where: sportSlug ? { sport: { slug: sportSlug } } : undefined,
+    orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+    include: { sport: { select: { id: true, name: true, slug: true } } },
+  });
+}
+
+export async function getUserAdhesion(userId: string) {
+  return prisma.adhesion.findUnique({
+    where: { userId_saisonYear: { userId, saisonYear: saisonYear() } },
+    include: { payment: true },
+  });
+}
+
+export async function getUserRegistrations(userId: string) {
+  return prisma.registration.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: { competition: true },
+  });
+}
+
+export async function getUserPayments(userId: string) {
+  return prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+}
+
+export async function getRegistration(userId: string, competitionId: string) {
+  return prisma.registration.findUnique({ where: { userId_competitionId: { userId, competitionId } } });
+}
+
+export async function getTeamMembership(userId: string, sportId: string) {
+  return prisma.teamMember.findUnique({ where: { userId_sportId: { userId, sportId } } });
 }
