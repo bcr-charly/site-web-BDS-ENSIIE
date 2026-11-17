@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  SPORT_MGR
+  BDS
+  ADMIN
+}
+
+enum TeamRole {
+  PLAYER
+  CAPTAIN
+  COACH
+}
+
+enum CompetitionType {
+  CHAMPIONNAT
+  COMPETITION
+  EVENEMENT
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentKind {
+  COTISATION
+  COMPETITION
+  LICENCE_FFSU
+  ORDER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  SHIPPED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  firstName     String
+  lastName      String
+  promoYear     Int?
+  phone         String?
+  birthDate     DateTime?
+  avatarUrl     String?
+  role          Role      @default(STUDENT)
+  isMember      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bdsProfile    BdsMember?
+  sportsCaptain Sport[]      @relation("SportCaptain")
+  sessionsCoach Session[]    @relation("SessionCoach")
+  teamMembers   TeamMember[]
+  registrations Registration[]
+  adhesions     Adhesion[]
+  payments      Payment[]
+  orders        Order[]
+}
+
+model BdsMember {
+  id           String @id @default(cuid())
+  userId       String @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poste        String
+  displayOrder Int    @default(0)
+}
+
+model Sport {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  imageUrl    String?
+  captainId   String?
+  captain     User?    @relation("SportCaptain", fields: [captainId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    Session[]
+  teamMembers TeamMember[]
+}
+
+model Session {
+  id        String  @id @default(cuid())
+  sportId   String
+  sport     Sport   @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String
+  location  String?
+  coachId   String?
+  coach     User?   @relation("SessionCoach", fields: [coachId], references: [id])
+
+  @@index([sportId, weekday])
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sportId      String
+  sport        Sport    @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  role         TeamRole @default(PLAYER)
+  jerseyNumber Int?
+
+  @@unique([userId, sportId])
+  @@index([sportId, role])
+}
+
+model Competition {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  type        CompetitionType
+  description String?
+  date        DateTime
+  location    String?
+  priceCents  Int             @default(0)
+  deadline    DateTime?
+  maxSlots    Int?
+  imageUrl    String?
+  isOpen      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  registrations Registration[]
+}
+
+model Registration {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competitionId String
+  competition   Competition        @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  status        RegistrationStatus @default(PENDING)
+  message       String?
+  createdAt     DateTime           @default(now())
+
+  @@unique([userId, competitionId])
+  @@index([competitionId, status])
+}
+
+model Adhesion {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saisonYear Int
+  status     PaymentStatus @default(PENDING)
+  paymentId  String?       @unique
+  payment    Payment?      @relation(fields: [paymentId], references: [id])
+  paidAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@unique([userId, saisonYear])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind            PaymentKind
+  helloAssoIntent String        @unique
+  status          PaymentStatus @default(PENDING)
+  amountCents     Int
+  payerName       String?
+  receiptUrl      String?
+  relatedId       String?
+  createdAt       DateTime      @default(now())
+  paidAt          DateTime?
+
+  adhesion Adhesion?
+  order    Order?
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  priceCents  Int
+  imageUrl    String?
+  stock       Int      @default(0)
+  sizes       Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentId  String?     @unique
+  payment    Payment?    @relation(fields: [paymentId], references: [id])
+  status     OrderStatus @default(PENDING)
+  totalCents Int
+  createdAt  DateTime    @default(now())
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+  size           String?
+  quantity       Int     @default(1)
+  unitPriceCents Int
+}
